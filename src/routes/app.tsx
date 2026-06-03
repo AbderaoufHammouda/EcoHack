@@ -8,9 +8,11 @@ import {
   submitApplication,
   getUserApplications,
   getUserCertifications,
+  addCertification,
   type OdejEvent,
   type Application,
   type Certification,
+  type CertificationInput,
 } from "@/lib/store";
 import {
   getGameProfile,
@@ -115,6 +117,12 @@ function AppPage() {
   const [badgeModal, setBadgeModal] = useState<string | null>(null);
   const [myCerts, setMyCerts] = useState<Certification[]>([]);
   const [certsLoading, setCertsLoading] = useState(false);
+
+  // Certification add modal
+  const [certModal, setCertModal] = useState(false);
+  const [certForm, setCertForm] = useState<CertificationInput>({ name: "" });
+  const [certFile, setCertFile] = useState<File | null>(null);
+  const [certSubmitting, setCertSubmitting] = useState(false);
 
   // ── Guard ────────────────────────────────────────────────────────────────
 
@@ -233,6 +241,30 @@ function AppPage() {
     await refreshAll();
   }
 
+  // ── Add certification ────────────────────────────────────────────────────
+
+  async function handleAddCertification(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !certForm.name.trim()) return;
+    setCertSubmitting(true);
+    const input: CertificationInput = {
+      ...certForm,
+      name: certForm.name.trim(),
+      file: certFile ?? undefined,
+    };
+    const result = await addCertification(user.id, input);
+    setCertSubmitting(false);
+    if (result) {
+      addToast("Certification ajoutée ✓");
+      setMyCerts((prev) => [result, ...prev]);
+      setCertModal(false);
+      setCertForm({ name: "" });
+      setCertFile(null);
+    } else {
+      addToast("Erreur lors de l'ajout. Réessayez.");
+    }
+  }
+
   // ── Leaderboard view task ────────────────────────────────────────────────
 
   function handleViewLeaderboard() {
@@ -274,6 +306,116 @@ function AppPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
+
+      {/* ── Add Certification Modal ── */}
+      {certModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-2xl border hairline bg-surface shadow-soft p-8">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-leaf mb-1">Mon Profil</div>
+                <h2 className="text-[20px] font-medium tracking-tight">Ajouter une certification</h2>
+              </div>
+              <button
+                onClick={() => setCertModal(false)}
+                className="h-8 w-8 shrink-0 rounded-full border hairline flex items-center justify-center text-[18px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCertification} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-1.5">
+                  Nom de la certification <span className="text-destructive">*</span>
+                </label>
+                <input
+                  id="cert-name"
+                  type="text"
+                  required
+                  value={certForm.name}
+                  onChange={(e) => setCertForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Ex: Certificat de secourisme"
+                  className="w-full rounded-lg border hairline bg-background/60 px-4 py-2.5 text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-leaf/40 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-1.5">
+                  Organisation émettrice
+                </label>
+                <input
+                  id="cert-org"
+                  type="text"
+                  value={certForm.organization ?? ""}
+                  onChange={(e) => setCertForm((f) => ({ ...f, organization: e.target.value }))}
+                  placeholder="Ex: Croix-Rouge"
+                  className="w-full rounded-lg border hairline bg-background/60 px-4 py-2.5 text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-leaf/40 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-1.5">
+                    Code / N°
+                  </label>
+                  <input
+                    id="cert-code"
+                    type="text"
+                    value={certForm.code ?? ""}
+                    onChange={(e) => setCertForm((f) => ({ ...f, code: e.target.value }))}
+                    placeholder="ABC-123"
+                    className="w-full rounded-lg border hairline bg-background/60 px-4 py-2.5 text-[14px] placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-leaf/40 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-1.5">
+                    Date d'obtention
+                  </label>
+                  <input
+                    id="cert-date"
+                    type="date"
+                    value={certForm.issueDate ?? ""}
+                    onChange={(e) => setCertForm((f) => ({ ...f, issueDate: e.target.value }))}
+                    className="w-full rounded-lg border hairline bg-background/60 px-4 py-2.5 text-[14px] text-muted-foreground focus:outline-none focus:ring-2 focus:ring-leaf/40 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-1.5">
+                  Fichier (PDF / image)
+                </label>
+                <input
+                  id="cert-file"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setCertFile(e.target.files?.[0] ?? null)}
+                  className="w-full rounded-lg border hairline bg-background/60 px-4 py-2.5 text-[13px] text-muted-foreground file:mr-3 file:rounded-full file:border-0 file:bg-leaf/10 file:text-leaf file:text-[11px] file:font-mono file:px-3 file:py-1 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCertModal(false)}
+                  className="flex-1 h-10 rounded-full border hairline text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  id="cert-submit-btn"
+                  type="submit"
+                  disabled={certSubmitting || !certForm.name.trim()}
+                  className="flex-1 h-10 rounded-full bg-foreground text-background text-[13px] font-medium transition-opacity hover:opacity-85 disabled:opacity-50"
+                >
+                  {certSubmitting ? "Enregistrement…" : "Ajouter"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Motivation Letter Modal ── */}
       {motivationModal && (
@@ -881,8 +1023,12 @@ function AppPage() {
                       task={task}
                       done={done}
                       onComplete={() => {
-                        if (task.action === "explore") { setView("explorer"); handleCompleteTask(task.id); }
+                        if (task.action === "explore") { setView("explorer"); }
                         else if (task.action === "leaderboard") { handleViewLeaderboard(); }
+                        else if (task.id === "streak-bonus") {
+                          if (profile.streak >= 1) handleCompleteTask(task.id);
+                          else addToast("Connectez-vous plusieurs jours de suite d'abord !");
+                        }
                         else handleCompleteTask(task.id);
                       }}
                     />
@@ -903,7 +1049,8 @@ function AppPage() {
                       task={task}
                       done={done}
                       onComplete={() => {
-                        if (task.action === "register") { setView("explorer"); handleCompleteTask(task.id); }
+                        if (task.action === "register") { setView("explorer"); }
+                        else if (task.id === "complete-profile") { setView("profil"); }
                         else handleCompleteTask(task.id);
                       }}
                     />
@@ -989,7 +1136,16 @@ function AppPage() {
 
               {/* Certifications */}
               <div className="rounded-2xl border hairline bg-surface/60 p-6 mb-6">
-                <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-4">Certifications</div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-muted-foreground">Certifications</div>
+                  <button
+                    id="add-cert-btn"
+                    onClick={() => { setCertModal(true); setCertForm({ name: "" }); setCertFile(null); }}
+                    className="h-8 px-3 rounded-full text-[11px] font-mono border hairline hover:bg-surface transition-colors flex items-center gap-1.5"
+                  >
+                    <span className="text-[14px] leading-none">+</span> Ajouter
+                  </button>
+                </div>
                 {certsLoading ? (
                   <div className="text-[13px] text-muted-foreground animate-pulse">Chargement…</div>
                 ) : myCerts.length === 0 ? (

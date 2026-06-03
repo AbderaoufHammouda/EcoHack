@@ -20,6 +20,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Vercel build output (generated during build, not committed)
+.vercel/output
+
 # Environment variables (keep secrets off GitHub)
 .env
 .env.local
