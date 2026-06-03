@@ -52,14 +52,14 @@ function LoginPage() {
       <div className="w-full max-w-sm relative z-10">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-leaf-gradient shadow-leaf">
-              <span className="h-1.5 w-1.5 rounded-full bg-background" />
-            </span>
-            <span className="text-[15px] font-medium tracking-tight">
-              YouthLink<span className="text-leaf">.</span>bejaia
-            </span>
-          </Link>
+            <Link to="/" className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-leaf-gradient shadow-leaf">
+                <span className="h-1.5 w-1.5 rounded-full bg-background" />
+              </span>
+              <span className="text-[15px] font-medium tracking-tight">
+                YouthLink<span className="text-leaf">.</span>bejaia
+              </span>
+            </Link>
         </div>
 
         <div className="rounded-2xl border hairline bg-surface/60 backdrop-blur p-8">
