@@ -9,8 +9,31 @@ const LANGS: { code: Lang; label: string }[] = [
   { code: "TZM", label: "Kabyle" },
 ];
 
+function SunIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  );
+}
+
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ylb_theme") !== "light";
+    }
+    return true;
+  });
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { lang, setLang, t } = useLang();
@@ -21,6 +44,17 @@ export function Nav() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    if (isDark) {
+      html.classList.remove("light");
+      localStorage.setItem("ylb_theme", "dark");
+    } else {
+      html.classList.add("light");
+      localStorage.setItem("ylb_theme", "light");
+    }
+  }, [isDark]);
 
   function handleLogout() {
     logout();
@@ -52,6 +86,7 @@ export function Nav() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Language switcher */}
           <div className="hidden sm:flex h-8 items-center rounded-full border hairline bg-surface/60 p-0.5 text-[11px] font-mono">
             {LANGS.map(({ code, label }) => (
               <button
@@ -67,6 +102,15 @@ export function Nav() {
               </button>
             ))}
           </div>
+
+          {/* Dark / Light toggle */}
+          <button
+            onClick={() => setIsDark(!isDark)}
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="h-8 w-8 grid place-items-center rounded-full border hairline bg-surface/60 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {isDark ? <SunIcon /> : <MoonIcon />}
+          </button>
 
           {user ? (
             <div className="flex items-center gap-2">
