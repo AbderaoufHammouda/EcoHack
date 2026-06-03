@@ -1,14 +1,19 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useLang, type Lang } from "@/contexts/lang-context";
 
-const LANGS = ["AR", "FR", "ⵜⵎ"] as const;
+const LANGS: { code: Lang; label: string }[] = [
+  { code: "FR", label: "FR" },
+  { code: "AR", label: "AR" },
+  { code: "TZM", label: "Kabyle" },
+];
 
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
-  const [lang, setLang] = useState<(typeof LANGS)[number]>("FR");
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { lang, setLang, t } = useLang();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -41,24 +46,24 @@ export function Nav() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-[13px] text-muted-foreground">
-          <a href="#discover" className="hover:text-foreground transition-colors">Découvrir</a>
-          <a href="#map" className="hover:text-foreground transition-colors">Carte</a>
-          <a href="#impact" className="hover:text-foreground transition-colors">Éco-impact</a>
+          <a href="#discover" className="hover:text-foreground transition-colors">{t("nav_discover")}</a>
+          <a href="#map" className="hover:text-foreground transition-colors">{t("nav_map")}</a>
+          <a href="#impact" className="hover:text-foreground transition-colors">{t("nav_eco")}</a>
         </nav>
 
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex h-8 items-center rounded-full border hairline bg-surface/60 p-0.5 text-[11px] font-mono">
-            {LANGS.map((l) => (
+            {LANGS.map(({ code, label }) => (
               <button
-                key={l}
-                onClick={() => setLang(l)}
+                key={code}
+                onClick={() => setLang(code)}
                 className={`h-7 min-w-[28px] rounded-full px-2 transition-colors ${
-                  lang === l
+                  lang === code
                     ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {l}
+                {label}
               </button>
             ))}
           </div>
@@ -70,14 +75,14 @@ export function Nav() {
                 id="nav-dashboard"
                 className="h-9 inline-flex items-center rounded-full bg-leaf-gradient px-4 text-[13px] font-medium text-background hover:opacity-90 transition-opacity"
               >
-                {user.role === "admin" ? "Admin" : "Mon espace"}
+                {user.role === "admin" ? t("nav_admin") : t("nav_myspace")}
               </Link>
               <button
                 id="nav-logout"
                 onClick={handleLogout}
                 className="h-9 inline-flex items-center rounded-full border hairline bg-surface/40 px-4 text-[13px] text-foreground/90 hover:bg-surface transition-colors"
               >
-                Déconnexion
+                {t("nav_logout")}
               </button>
             </div>
           ) : (
@@ -87,14 +92,14 @@ export function Nav() {
                 id="nav-login"
                 className="h-9 inline-flex items-center rounded-full border hairline bg-surface/40 px-4 text-[13px] text-foreground/90 backdrop-blur transition-colors hover:bg-surface"
               >
-                Connexion
+                {t("nav_login")}
               </Link>
               <Link
                 to="/signup"
                 id="nav-signup"
                 className="h-9 inline-flex items-center rounded-full bg-foreground px-4 text-[13px] font-medium text-background hover:opacity-90 transition-opacity"
               >
-                S'inscrire
+                {t("nav_signup")}
               </Link>
             </div>
           )}

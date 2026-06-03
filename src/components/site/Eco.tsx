@@ -1,31 +1,31 @@
 import { motion } from "motion/react";
+import { useLang } from "@/contexts/lang-context";
 
 export function Eco() {
+  const { t } = useLang();
+
   return (
     <section id="impact" className="relative py-28 md:py-36">
       <div className="mx-auto max-w-[1240px] px-6">
         <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
           <div>
             <div className="text-[12px] font-mono uppercase tracking-[0.18em] text-leaf">
-              03 — Eco-impact
+              {t("eco_eyebrow")}
             </div>
             <h2 className="mt-4 text-[36px] tracking-[-0.025em] leading-[1.05] md:text-[52px] text-balance">
-              Lightweight by design.{" "}
-              <span className="font-serif italic text-leaf-soft">Kinder</span>{" "}
-              to phones, networks and the planet.
+              {t("eco_title_1")}{" "}
+              <span className="font-serif italic text-leaf-soft">{t("eco_title_2")}</span>{" "}
+              {t("eco_title_3")}
             </h2>
             <p className="mt-6 max-w-md text-[14px] text-muted-foreground leading-relaxed">
-              Most of our users open YouthLink on a modest phone, on a 3G
-              connection, with limited data. So we shipped less code, smaller
-              images, and a homepage that works the second time around — even
-              offline.
+              {t("eco_subtitle")}
             </p>
 
             <ul className="mt-10 space-y-px overflow-hidden rounded-xl border hairline bg-border">
-              <Stat label="Page weight" value="210 KB" detail="vs. 2.4 MB industry avg." pct={91} />
-              <Stat label="Carbon per visit" value="0.08 g" detail="Cleaner than 92% of websites" pct={92} />
-              <Stat label="First contentful paint" value="0.6 s" detail="On a 3G connection" pct={88} />
-              <Stat label="Offline-ready" value="100%" detail="After first visit" pct={100} />
+              <Stat label={t("eco_stat_weight")} value="210 KB" detail={t("eco_stat_weight_detail")} pct={91} />
+              <Stat label={t("eco_stat_carbon")} value="0.08 g" detail={t("eco_stat_carbon_detail")} pct={92} />
+              <Stat label={t("eco_stat_paint")} value="0.6 s" detail={t("eco_stat_paint_detail")} pct={88} />
+              <Stat label={t("eco_stat_offline")} value="100%" detail={t("eco_stat_offline_detail")} pct={100} />
             </ul>
           </div>
 
@@ -38,8 +38,8 @@ export function Eco() {
           >
             <div className="relative overflow-hidden rounded-2xl border hairline bg-surface p-8 shadow-soft">
               <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-                <span>Eco tracker · this month</span>
-                <span className="text-leaf">live</span>
+                <span>{t("eco_tracker")}</span>
+                <span className="text-leaf">{t("eco_live")}</span>
               </div>
 
               <div className="mt-8">
@@ -47,15 +47,15 @@ export function Eco() {
                   3.2<span className="text-[28px] text-muted-foreground"> tons CO₂e</span>
                 </div>
                 <div className="mt-2 text-[13px] text-muted-foreground">
-                  saved vs. building this product the conventional way.
+                  {t("eco_saved")}
                 </div>
               </div>
 
               <div className="mt-10 grid grid-cols-3 gap-4 border-t hairline pt-6">
                 {[
-                  ["Trees planted", "1,420"],
-                  ["Volunteers", "8,300"],
-                  ["Workshops", "612"],
+                  [t("eco_trees"), "1,420"],
+                  [t("eco_volunteers"), "8,300"],
+                  [t("eco_workshops"), "612"],
                 ].map(([l, v]) => (
                   <div key={l}>
                     <div className="text-[20px] tracking-tight">{v}</div>

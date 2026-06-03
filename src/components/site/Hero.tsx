@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/contexts/auth-context";
+import { useLang } from "@/contexts/lang-context";
 import heroImg from "@/assets/hero.jpg";
 
 function greeting(): { fr: string; ar: string; ber: string; period: string } {
@@ -14,6 +15,7 @@ export function Hero() {
   const g = greeting();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLang();
 
   function handleEventClick() {
     if (user) {
@@ -22,6 +24,7 @@ export function Hero() {
       navigate({ to: "/login", search: { redirect: "/app" } });
     }
   }
+
   return (
     <section className="relative isolate overflow-hidden pt-32 pb-24 md:pt-40 md:pb-32">
       <div className="absolute inset-0 bg-hero-gradient pointer-events-none" />
@@ -35,7 +38,7 @@ export function Hero() {
           className="flex items-center gap-2 text-[12px] font-mono text-muted-foreground"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-leaf animate-pulse" />
-          <span className="uppercase tracking-[0.18em]">ECOHACK · Béjaïa 2026</span>
+          <span className="uppercase tracking-[0.18em]">{t("hero_eyebrow")}</span>
           <span className="opacity-40">/</span>
           <span className="opacity-70">{g.fr} · {g.ar} · {g.ber}</span>
         </motion.div>
@@ -48,12 +51,12 @@ export function Hero() {
               transition={{ duration: 0.8, delay: 0.05 }}
               className="text-balance text-[44px] leading-[1.02] tracking-[-0.03em] sm:text-[64px] md:text-[80px]"
             >
-              Le réseau calme
+              {t("hero_title_1")}
               <br />
-              qui connecte la{" "}
-              <span className="font-serif italic text-leaf">jeunesse</span>
+              {t("hero_title_2")}{" "}
+              <span className="font-serif italic text-leaf">{t("hero_title_3")}</span>
               <br />
-              de Béjaïa.
+              {t("hero_title_4")}
             </motion.h1>
 
             <motion.p
@@ -62,9 +65,7 @@ export function Hero() {
               transition={{ duration: 0.7, delay: 0.18 }}
               className="mt-6 max-w-xl text-pretty text-[15px] leading-relaxed text-muted-foreground md:text-base"
             >
-              Une plateforme légère et peu gourmande en données pour les
-              activités, le bénévolat, les ateliers et les structures de
-              jeunesse de la wilaya — construite avec ODEJ Béjaïa.
+              {t("hero_subtitle")}
             </motion.p>
 
             <motion.div
@@ -77,7 +78,7 @@ export function Hero() {
                 onClick={handleEventClick}
                 className="group inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-5 text-[14px] font-medium text-background transition-all hover:gap-3"
               >
-                Explorer les opportunités
+                {t("hero_cta_explore")}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
               </button>
               <Link
@@ -85,7 +86,7 @@ export function Hero() {
                 search={{ redirect: "/app" }}
                 className="inline-flex h-11 items-center rounded-full border hairline bg-surface/40 px-5 text-[14px] text-foreground/90 backdrop-blur transition-colors hover:bg-surface"
               >
-                Se connecter
+                {t("hero_cta_login")}
               </Link>
             </motion.div>
 
@@ -95,10 +96,10 @@ export function Hero() {
               transition={{ duration: 1, delay: 0.5 }}
               className="mt-12 flex flex-wrap gap-x-10 gap-y-4 text-[12px] font-mono uppercase tracking-[0.15em] text-muted-foreground"
             >
-              <Metric value="68" label="Structures" />
-              <Metric value="52" label="Communes" />
-              <Metric value="89%" label="Moins de données" />
-              <Metric value="ODEJ" label="Partenaire officiel" />
+              <Metric value="68" label={t("hero_metric_structures")} />
+              <Metric value="52" label={t("hero_metric_communes")} />
+              <Metric value="89%" label={t("hero_metric_data")} />
+              <Metric value="ODEJ" label={t("hero_metric_partner")} />
             </motion.div>
           </div>
 
@@ -127,18 +128,18 @@ export function Hero() {
               >
                 <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.18em] text-leaf">
                   <span className="h-1.5 w-1.5 rounded-full bg-leaf animate-pulse" />
-                  En direct · Béjaïa
+                  {t("hero_live")}
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-[15px] tracking-tight">Atelier · Design d'impact</div>
-                    <div className="text-[12px] text-muted-foreground">Maison de Jeunes Béjaïa · Sam 18:00</div>
+                    <div className="text-[15px] tracking-tight">{t("hero_live_event")}</div>
+                    <div className="text-[12px] text-muted-foreground">{t("hero_live_sub")}</div>
                   </div>
                   <button
                     onClick={handleEventClick}
                     className="shrink-0 h-8 rounded-full bg-leaf-gradient px-3 text-[11px] font-medium text-background hover:opacity-90 transition-opacity"
                   >
-                    Rejoindre
+                    {t("hero_live_btn")}
                   </button>
                 </div>
               </motion.div>

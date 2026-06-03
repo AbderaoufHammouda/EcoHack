@@ -1,40 +1,30 @@
-const voices = [
-  {
-    quote:
-      "J'ai trouvé un atelier de code à deux rues de chez moi à Amizour. Je ne savais même pas qu'il existait.",
-    name: "Massinissa, 20 ans",
-    place: "Amizour · Béjaïa",
-  },
-  {
-    quote:
-      "On a posté un nettoyage de côte vendredi. Le dimanche, 90 personnes s'étaient inscrites — sans aucune pub.",
-    name: "Lila, personnel ODEJ",
-    place: "Tichy · Béjaïa",
-  },
-  {
-    quote:
-      "Enfin quelque chose en arabe, français et tamazight qui ne ressemble pas à un formulaire administratif.",
-    name: "Yidir, 22 ans",
-    place: "Akbou · Béjaïa",
-  },
-];
+import { useLang } from "@/contexts/lang-context";
 
 export function Voices() {
+  const { t } = useLang();
+
+  const voices = [
+    { quote: t("voices_q1"), name: t("voices_p1"), place: t("voices_l1") },
+    { quote: t("voices_q2"), name: t("voices_p2"), place: t("voices_l2") },
+    { quote: t("voices_q3"), name: t("voices_p3"), place: t("voices_l3") },
+  ];
+
   return (
     <section className="relative py-28 md:py-36">
       <div className="mx-auto max-w-[1240px] px-6">
         <div className="grid gap-12 lg:grid-cols-[0.7fr_1.3fr] lg:items-start">
           <div>
             <div className="text-[12px] font-mono uppercase tracking-[0.18em] text-leaf">
-              05 — Voix · ⵉⵙⴻⵍⵍⴰⵙⴻⵏ
+              {t("voices_eyebrow")}
             </div>
             <h2 className="mt-4 text-[36px] tracking-[-0.025em] leading-[1.05] md:text-[48px] text-balance">
-              De{" "}
-              <span className="font-serif italic">Béjaïa</span> à{" "}
-              <span className="font-serif italic">Kherrata</span>.
+              {t("voices_title_1")}{" "}
+              <span className="font-serif italic">{t("voices_title_2")}</span>{" "}
+              {t("voices_title_3")}{" "}
+              <span className="font-serif italic">{t("voices_title_4")}</span>.
             </h2>
             <p className="mt-4 text-[13px] text-muted-foreground leading-relaxed">
-              Des voix de la wilaya — en arabe, en français, en tamazight.
+              {t("voices_subtitle")}
             </p>
           </div>
 

@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useLang } from "@/contexts/lang-context";
 import mapImg from "@/assets/map.jpg";
 
 // Key communes of Béjaïa wilaya with facility counts from ODEJ data
@@ -16,32 +17,31 @@ const COMMUNES = [
 ];
 
 export function MapSection() {
+  const { t } = useLang();
+
   return (
     <section id="map" className="relative py-28 md:py-36 border-y hairline bg-surface/40">
       <div className="mx-auto max-w-[1240px] px-6">
         <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
             <div className="text-[12px] font-mono uppercase tracking-[0.18em] text-leaf">
-              02 — Carte · ⵜⴰⵏⴰⴹⵜ
+              {t("map_eyebrow")}
             </div>
             <h2 className="mt-4 text-[36px] tracking-[-0.025em] leading-[1.05] md:text-[52px] text-balance">
-              Chaque{" "}
-              <span className="font-serif italic">Maison de Jeunes</span>,
-              sur une carte calme — بجاية.
+              {t("map_title_1")}{" "}
+              <span className="font-serif italic">{t("map_title_2")}</span>
+              {t("map_title_3")}
             </h2>
             <p className="mt-6 max-w-md text-[14px] text-muted-foreground leading-relaxed">
-              Trouvez la structure la plus proche de chez vous dans la
-              wilaya de Béjaïa. Filtrez par commune, par type d'activité,
-              par ce qui est ouvert ce soir. Fonctionne hors ligne dès la
-              première visite.
+              {t("map_subtitle")}
             </p>
 
             <div className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border hairline bg-border">
               {[
-                ["68", "Structures ODEJ"],
-                ["52 / 52", "Communes couvertes"],
-                ["210 KB", "Poids moyen / page"],
-                ["Hors ligne", "Après la 1ʳᵉ visite"],
+                ["68", t("map_stat_structures")],
+                ["52 / 52", t("map_stat_communes")],
+                ["210 KB", t("map_stat_weight")],
+                [t("map_offline_label"), t("map_stat_offline")],
               ].map(([v, l]) => (
                 <div key={l} className="bg-surface p-5">
                   <div className="text-[22px] tracking-tight">{v}</div>
@@ -103,7 +103,7 @@ export function MapSection() {
             />
 
             <div className="absolute bottom-4 left-4 rounded-lg border hairline bg-background/80 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground backdrop-blur">
-              En direct · Béjaïa · 9 nouvelles ce soir
+              {t("map_live")}
             </div>
           </div>
         </div>

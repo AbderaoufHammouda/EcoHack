@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/contexts/auth-context";
+import { useLang } from "@/contexts/lang-context";
 import workshopImg from "@/assets/workshop.jpg";
 import communityImg from "@/assets/community.jpg";
 
@@ -59,6 +60,7 @@ const items = [
 export function Discover() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLang();
 
   function handleEventClick() {
     if (user) {
@@ -74,27 +76,25 @@ export function Discover() {
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <div className="text-[12px] font-mono uppercase tracking-[0.18em] text-leaf">
-              01 — Découvrir · اكتشف
+              {t("discover_eyebrow")}
             </div>
             <h2 className="mt-4 text-[36px] tracking-[-0.025em] leading-[1.05] md:text-[52px] text-balance">
-              Un fil qui connaît votre{" "}
-              <span className="font-serif italic text-leaf-soft">commune</span>,
-              vos intérêts, votre temps.
+              {t("discover_title_1")}{" "}
+              <span className="font-serif italic text-leaf-soft">{t("discover_title_2")}</span>
+              {t("discover_title_3")}
             </h2>
           </div>
           <p className="max-w-sm text-[14px] text-muted-foreground leading-relaxed">
-            Personnalisé en silence. Pas de scroll addictif — juste la
-            prochaine chose utile qui se passe près de vous, cette semaine,
-            dans la wilaya de Béjaïa.
+            {t("discover_subtitle")}
           </p>
         </div>
 
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <FeaturedCard image={workshopImg} onClick={handleEventClick} />
+          <FeaturedCard image={workshopImg} onClick={handleEventClick} featuredLabel={t("discover_featured")} featuredTitle={t("discover_featured_title")} featuredSub={t("discover_featured_sub")} />
           {items.slice(0, 3).map((it, i) => (
             <Card key={i} {...it} delay={i * 0.05} onClick={handleEventClick} />
           ))}
-          <SpotlightCard image={communityImg} onClick={handleEventClick} />
+          <SpotlightCard image={communityImg} onClick={handleEventClick} spotlightLabel={t("discover_spotlight")} spotlightQuote={t("discover_spotlight_quote")} spotlightCredit={t("discover_spotlight_credit")} />
           {items.slice(3).map((it, i) => (
             <Card key={i + 10} {...it} delay={i * 0.05} onClick={handleEventClick} />
           ))}
@@ -162,7 +162,7 @@ function Card({
   );
 }
 
-function FeaturedCard({ image, onClick }: { image: string; onClick?: () => void }) {
+function FeaturedCard({ image, onClick, featuredLabel, featuredTitle, featuredSub }: { image: string; onClick?: () => void; featuredLabel: string; featuredTitle: string; featuredSub: string }) {
   return (
     <motion.article
       initial={{ opacity: 0, y: 14 }}
@@ -176,21 +176,21 @@ function FeaturedCard({ image, onClick }: { image: string; onClick?: () => void 
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/0" />
       <div className="relative flex h-full flex-col justify-end p-6">
         <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-amber">
-          À la une cette semaine
+          {featuredLabel}
         </div>
         <h3 className="mt-3 text-[20px] tracking-tight text-balance">
-          Studio ouvert — créez quelque chose pour votre commune
+          {featuredTitle}
         </h3>
-        <div className="mt-3 text-[12px] text-muted-foreground">5 communes · 80 participants</div>
+        <div className="mt-3 text-[12px] text-muted-foreground">{featuredSub}</div>
         <div className="mt-4 inline-flex items-center gap-2 text-[12px] font-mono text-amber opacity-0 group-hover:opacity-100 transition-opacity">
-          Participer → 
+          Participer →
         </div>
       </div>
     </motion.article>
   );
 }
 
-function SpotlightCard({ image, onClick }: { image: string; onClick?: () => void }) {
+function SpotlightCard({ image, onClick, spotlightLabel, spotlightQuote, spotlightCredit }: { image: string; onClick?: () => void; spotlightLabel: string; spotlightQuote: string; spotlightCredit: string }) {
   return (
     <motion.article
       initial={{ opacity: 0, y: 14 }}
@@ -204,14 +204,14 @@ function SpotlightCard({ image, onClick }: { image: string; onClick?: () => void
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
       <div className="relative flex h-full flex-col justify-end p-6">
         <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-leaf">
-          Spotlight · Bénévoles Béjaïa
+          {spotlightLabel}
         </div>
         <h3 className="mt-3 text-[20px] tracking-tight text-balance">
-          « On a planté 1 400 arbres avec des gens qu'on ne connaissait pas. »
+          {spotlightQuote}
         </h3>
-        <div className="mt-3 text-[12px] text-muted-foreground">Yasmine · Béjaïa</div>
+        <div className="mt-3 text-[12px] text-muted-foreground">{spotlightCredit}</div>
         <div className="mt-4 inline-flex items-center gap-2 text-[12px] font-mono text-leaf opacity-0 group-hover:opacity-100 transition-opacity">
-          Rejoindre → 
+          Rejoindre →
         </div>
       </div>
     </motion.article>
