@@ -125,17 +125,6 @@ function LoginPage() {
               S'inscrire
             </Link>
           </div>
-
-          {/* Admin hint */}
-          <div className="mt-6 rounded-xl border hairline bg-surface/60 p-4">
-            <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-leaf mb-2">
-              Accès ODEJ Béjaïa
-            </div>
-            <div className="text-[12px] text-muted-foreground space-y-0.5">
-              <div>Email : <span className="font-mono text-foreground/80">admin@odejbejaia-dz.com</span></div>
-              <div>Mot de passe : <span className="font-mono text-foreground/80">admin2026</span></div>
-            </div>
-          </div>
         </div>
 
         <div className="mt-6 text-center">
