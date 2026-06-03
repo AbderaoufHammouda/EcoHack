@@ -8,7 +8,45 @@ export interface User {
   email: string;
   role: UserRole;
   commune: string;
+  skills: string[];
   createdAt: string;
+}
+
+export interface Certification {
+  id: string;
+  userId: string;
+  name: string;
+  fileUrl: string | null;
+  code: string | null;
+  issueDate: string | null;
+  organization: string | null;
+  uploadedAt: string;
+}
+
+export interface CertificationInput {
+  name: string;
+  code?: string;
+  issueDate?: string;
+  organization?: string;
+  file?: File;
+}
+
+export type ApplicationStatus = "pending" | "accepted" | "declined";
+
+export interface Application {
+  id: string;
+  userId: string;
+  eventId: string;
+  motivation: string;
+  status: ApplicationStatus;
+  createdAt: string;
+  reviewedAt: string | null;
+  // joined
+  userName?: string;
+  userEmail?: string;
+  userCommune?: string;
+  userSkills?: string[];
+  eventTitle?: string;
 }
 
 export interface OdejEvent {
@@ -210,4 +248,160 @@ export async function cancelRegistration(
   });
   if (error) { console.error("cancelRegistration:", error.message); return false; }
   return data === true;
+}
+
+// ─── Certifications ────────────────────────────────────────────────────────
+
+export async function getUserCertifications(userId: string): Promise<Certification[]> {
+  const { data, error } = await supabase
+    .from("certifications")
+    .select("*")
+    .eq("user_id", userId)
+    .order("uploaded_at", { ascending: false });
+  if (error) { console.error("getUserCertifications:", error.message); return []; }
+  return (data ?? []).map(mapCertification);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapCertification(r: any): Certification {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    name: r.name,
+    fileUrl: r.file_url ?? null,
+    code: r.code ?? null,
+    issueDate: r.issue_date ?? null,
+    organization: r.organization ?? null,
+    uploadedAt: r.uploaded_at,
+  };
+}
+
+/** Add a certification with optional file upload */
+export async function addCertification(
+  userId: string,
+  input: CertificationInput
+): Promise<Certification | null> {
+  let fileUrl: string | null = null;
+
+  if (input.file) {
+    const ext = input.file.name.split(".").pop();
+    const path = `${userId}/${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("certifications")
+      .upload(path, input.file, { upsert: false });
+    if (uploadError) { console.error("addCertification storage:", uploadError.message); return null; }
+    const { data: urlData } = supabase.storage.from("certifications").getPublicUrl(path);
+    fileUrl = urlData.publicUrl;
+  }
+
+  const { data, error } = await supabase
+    .from("certifications")
+    .insert({
+      user_id: userId,
+      name: input.name,
+      file_url: fileUrl,
+      code: input.code || null,
+      issue_date: input.issueDate || null,
+      organization: input.organization || null,
+    })
+    .select()
+    .single();
+  if (error) { console.error("addCertification insert:", error.message); return null; }
+  return mapCertification(data);
+}
+
+/** @deprecated use addCertification instead */
+export async function uploadCertification(
+  userId: string,
+  file: File
+): Promise<Certification | null> {
+  return addCertification(userId, { name: file.name, file });
+}
+
+export async function deleteCertification(certId: string): Promise<boolean> {
+  const { error } = await supabase.from("certifications").delete().eq("id", certId);
+  if (error) { console.error("deleteCertification:", error.message); return false; }
+  return true;
+}
+
+// ─── Applications ──────────────────────────────────────────────────────────
+
+export async function submitApplication(
+  userId: string,
+  eventId: string,
+  motivation: string
+): Promise<Application | null> {
+  const { data, error } = await supabase
+    .from("applications")
+    .upsert({ user_id: userId, event_id: eventId, motivation, status: "pending" },
+            { onConflict: "user_id,event_id" })
+    .select()
+    .single();
+  if (error) { console.error("submitApplication:", error.message); return null; }
+  return mapApplication(data);
+}
+
+export async function getUserApplications(userId: string): Promise<Application[]> {
+  const { data, error } = await supabase
+    .from("applications")
+    .select("*, events(title)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) { console.error("getUserApplications:", error.message); return []; }
+  return (data ?? []).map((r: any) => ({
+    ...mapApplication(r),
+    eventTitle: r.events?.title ?? "",
+  }));
+}
+
+export async function getAllApplications(): Promise<Application[]> {
+  const { data, error } = await supabase
+    .from("applications")
+    .select("*, events(title), profiles(name, email, commune, skills)")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("getAllApplications:", error.message); return []; }
+  return (data ?? []).map((r: any) => ({
+    ...mapApplication(r),
+    userName: r.profiles?.name ?? "",
+    userEmail: r.profiles?.email ?? "",
+    userCommune: r.profiles?.commune ?? "",
+    userSkills: r.profiles?.skills ?? [],
+    eventTitle: r.events?.title ?? "",
+  }));
+}
+
+export async function reviewApplication(
+  appId: string,
+  status: "accepted" | "declined"
+): Promise<boolean> {
+  const { error } = await supabase
+    .from("applications")
+    .update({ status, reviewed_at: new Date().toISOString() })
+    .eq("id", appId);
+  if (error) { console.error("reviewApplication:", error.message); return false; }
+  return true;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapApplication(r: any): Application {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    eventId: r.event_id,
+    motivation: r.motivation,
+    status: r.status,
+    createdAt: r.created_at,
+    reviewedAt: r.reviewed_at ?? null,
+  };
+}
+
+// ─── User skills ───────────────────────────────────────────────────────────
+
+export async function updateUserSkills(userId: string, skills: string[]): Promise<boolean> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ skills })
+    .eq("id", userId);
+  if (error) { console.error("updateUserSkills:", error.message); return false; }
+  return true;
 }

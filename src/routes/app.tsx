@@ -4,9 +4,13 @@ import { useAuth } from "@/contexts/auth-context";
 import {
   getEvents,
   getUserRegistrations,
-  registerForEvent,
   cancelRegistration,
+  submitApplication,
+  getUserApplications,
+  getUserCertifications,
   type OdejEvent,
+  type Application,
+  type Certification,
 } from "@/lib/store";
 import {
   getGameProfile,
@@ -47,7 +51,7 @@ const TYPE_LABELS: Record<string, string> = {
 // Use LEVELS directly as the levels list
 const LEVELS_LIST = LEVELS;
 
-type View = "explorer" | "progression" | "classement" | "taches";
+type View = "explorer" | "progression" | "classement" | "taches" | "profil";
 
 // ── Heatmap data derived from events ────────────────────────────────────────
 type CenterActivity = {
@@ -93,8 +97,14 @@ function AppPage() {
 
   const [events, setEvents] = useState<OdejEvent[]>([]);
   const [myRegs, setMyRegs] = useState<string[]>([]);
+  const [myApps, setMyApps] = useState<Application[]>([]);
   const [filter, setFilter] = useState("Tous");
   const [view, setView] = useState<View>("explorer");
+
+  // Motivation letter modal
+  const [motivationModal, setMotivationModal] = useState<OdejEvent | null>(null);
+  const [motivationText, setMotivationText] = useState("");
+  const [submittingApp, setSubmittingApp] = useState(false);
 
   const [profile, setProfile] = useState<GameProfile | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -103,6 +113,8 @@ function AppPage() {
 
   const [newBadges, setNewBadges] = useState<string[]>([]);
   const [badgeModal, setBadgeModal] = useState<string | null>(null);
+  const [myCerts, setMyCerts] = useState<Certification[]>([]);
+  const [certsLoading, setCertsLoading] = useState(false);
 
   // ── Guard ────────────────────────────────────────────────────────────────
 
@@ -115,19 +127,32 @@ function AppPage() {
 
   const refreshAll = useCallback(async () => {
     if (!user) return;
-    const [evs, regs, prof, lb] = await Promise.all([
+    const [evs, regs, apps, prof, lb] = await Promise.all([
       getEvents(),
       getUserRegistrations(user.id),
+      getUserApplications(user.id),
       getGameProfile(user.id),
       getLeaderboard(),
     ]);
     setEvents(evs);
     setMyRegs(regs.map((r) => r.eventId));
+    setMyApps(apps);
     setProfile(prof);
     setLeaderboard(lb);
   }, [user]);
 
-  // ── Process login streak once on mount ───────────────────────────────────
+  // Load certifications when switching to profil view
+  useEffect(() => {
+    if (view === "profil" && user) {
+      setCertsLoading(true);
+      getUserCertifications(user.id).then((c) => {
+        setMyCerts(c);
+        setCertsLoading(false);
+      });
+    }
+  }, [view, user]);
+
+  // ── Process login streak once on mount ───────────────────────────────────────
 
   useEffect(() => {
     if (!user || user.role === "admin") return;
@@ -159,30 +184,42 @@ function AppPage() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
   }
 
-  // ── Register ─────────────────────────────────────────────────────────────
+  // ── Apply (open motivation modal) ─────────────────────────────────────────
 
-  async function handleRegister(ev: OdejEvent) {
-    if (!user) return;
-    if (myRegs.includes(ev.id)) {
-      await cancelRegistration(user.id, ev.id);
-      addToast("Inscription annulée.");
-    } else {
-      const ok = await registerForEvent(user.id, ev.id);
-      if (ok) {
-        const xpGained = await completeTask(user.id, "register-event");
-        addToast("Inscription confirmée ✓", xpGained > 0 ? xpGained : 50);
-        await completeTask(user.id, "explore-event");
+  function openApplyModal(ev: OdejEvent) {
+    setMotivationModal(ev);
+    setMotivationText("");
+  }
 
-        const regs = await getUserRegistrations(user.id);
-        const awarded = await checkAndAwardBadges(user.id, regs.length);
-        if (awarded.length > 0) {
-          setNewBadges((b) => [...b, ...awarded]);
-          setBadgeModal(awarded[0]);
-        }
-      } else {
-        addToast("Plus de places disponibles.");
+  async function handleSubmitApplication(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !motivationModal) return;
+    if (motivationText.trim().length < 30) return;
+    setSubmittingApp(true);
+    const app = await submitApplication(user.id, motivationModal.id, motivationText.trim());
+    setSubmittingApp(false);
+    if (app) {
+      addToast("Candidature envoyée ✓", 20);
+      await completeTask(user.id, "explore-event");
+      const regs = await getUserRegistrations(user.id);
+      const awarded = await checkAndAwardBadges(user.id, regs.length);
+      if (awarded.length > 0) {
+        setNewBadges((b) => [...b, ...awarded]);
+        setBadgeModal(awarded[0]);
       }
+    } else {
+      addToast("Erreur lors de l'envoi. Réessayez.");
     }
+    setMotivationModal(null);
+    await refreshAll();
+  }
+
+  // ── Cancel registration ──────────────────────────────────────────────────
+
+  async function handleCancel(ev: OdejEvent) {
+    if (!user) return;
+    await cancelRegistration(user.id, ev.id);
+    addToast("Inscription annulée.");
     await refreshAll();
   }
 
@@ -232,10 +269,77 @@ function AppPage() {
     { id: "taches",      label: "Tâches",      icon: "✅" },
     { id: "classement",  label: "Classement",  icon: "🏆" },
     { id: "progression", label: "Progression", icon: "⭐" },
+    { id: "profil",      label: "Mon Profil",  icon: "👤" },
   ];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
+
+      {/* ── Motivation Letter Modal ── */}
+      {motivationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <div className="w-full max-w-lg rounded-2xl border hairline bg-surface shadow-soft p-8">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-leaf mb-1">Candidature</div>
+                <h2 className="text-[20px] font-medium tracking-tight leading-snug">{motivationModal.title}</h2>
+                <div className="text-[12px] text-muted-foreground mt-1">{motivationModal.facilityName} · {motivationModal.commune}</div>
+              </div>
+              <button
+                onClick={() => setMotivationModal(null)}
+                className="h-8 w-8 shrink-0 rounded-full border hairline flex items-center justify-center text-[18px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitApplication} className="space-y-5">
+              <div>
+                <label className="block text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-2">
+                  Lettre de motivation <span className="text-muted-foreground/60">(min. 30 caractères)</span>
+                </label>
+                <textarea
+                  id="motivation-textarea"
+                  rows={6}
+                  required
+                  minLength={30}
+                  value={motivationText}
+                  onChange={(e) => setMotivationText(e.target.value)}
+                  placeholder="Décrivez pourquoi vous souhaitez participer à cet événement, vos compétences pertinentes, et ce que vous espérez en retirer…"
+                  className="w-full rounded-xl border hairline bg-background/60 px-4 py-3 text-[14px] placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-leaf/40 transition-all resize-none"
+                />
+                <div className="mt-1.5 text-[11px] text-muted-foreground text-right">
+                  {motivationText.length} / 30 min
+                  {motivationText.length >= 30 && <span className="text-leaf ml-1">✓</span>}
+                </div>
+              </div>
+
+              <div className="rounded-xl border hairline bg-leaf/5 border-leaf/20 px-4 py-3 text-[12px] text-muted-foreground">
+                ℹ️ Votre profil, compétences et certifications seront transmis à l'ODEJ avec votre candidature.
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMotivationModal(null)}
+                  className="flex-1 h-11 rounded-full border hairline text-[14px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  id="submit-application"
+                  type="submit"
+                  disabled={submittingApp || motivationText.trim().length < 30}
+                  className="flex-1 h-11 rounded-full bg-foreground text-background text-[14px] font-medium hover:opacity-85 disabled:opacity-40 transition-opacity"
+                >
+                  {submittingApp ? "Envoi…" : "Envoyer ma candidature →"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ── Toasts ── */}
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 items-end pointer-events-none">
         {toasts.map((t) => (
@@ -342,8 +446,12 @@ function AppPage() {
 
         {/* ── Left sidebar ── */}
         <aside className="hidden lg:flex flex-col w-[280px] shrink-0 border-r hairline p-6 sticky top-16 self-start max-h-[calc(100vh-4rem)] overflow-y-auto">
-          {/* User card */}
-          <div className="rounded-2xl border hairline bg-surface/60 p-5 mb-6">
+          {/* User card — clickable to open profile */}
+          <div
+            className="rounded-2xl border hairline bg-surface/60 p-5 mb-6 cursor-pointer hover:bg-surface transition-colors"
+            onClick={() => setView("profil")}
+            title="Voir mon profil"
+          >
             <div className="flex items-center gap-3 mb-4">
               <div className="h-12 w-12 rounded-full bg-leaf-gradient flex items-center justify-center text-background text-[18px] font-semibold shrink-0">
                 {user.name.charAt(0).toUpperCase()}
@@ -469,6 +577,7 @@ function AppPage() {
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {displayedEvents.map((ev) => {
                   const registered = myRegs.includes(ev.id);
+                  const application = myApps.find((a) => a.eventId === ev.id);
                   const full = ev.seatsTaken >= ev.seatsTotal;
                   const pct = Math.round((ev.seatsTaken / ev.seatsTotal) * 100);
                   return (
@@ -476,9 +585,11 @@ function AppPage() {
                       key={ev.id}
                       ev={ev}
                       registered={registered}
+                      application={application}
                       full={full}
                       pct={pct}
-                      onRegister={() => handleRegister(ev)}
+                      onApply={() => openApplyModal(ev)}
+                      onCancel={() => handleCancel(ev)}
                     />
                   );
                 })}
@@ -827,6 +938,122 @@ function AppPage() {
             </>
           )}
 
+          {/* ══ PROFIL VIEW ═══════════════════════════════════════════════════════ */}
+          {view === "profil" && (
+            <>
+              <div className="mb-8">
+                <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-leaf mb-2">Mon espace</div>
+                <h1 className="text-[28px] md:text-[36px] tracking-[-0.02em]">Mon Profil</h1>
+                <p className="mt-1.5 text-[14px] text-muted-foreground">
+                  Vos informations, compétences et certifications visibles par l'ODEJ.
+                </p>
+              </div>
+
+              {/* Identity card */}
+              <div className="rounded-2xl border hairline bg-surface/60 p-6 mb-6 flex items-center gap-5">
+                <div className="h-16 w-16 rounded-full bg-leaf-gradient flex items-center justify-center text-background text-[24px] font-bold shrink-0">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-[22px] font-medium tracking-tight">{user.name}</div>
+                  <div className="text-[13px] text-muted-foreground mt-0.5">{user.email}</div>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[11px] font-mono text-muted-foreground">📍 {user.commune}</span>
+                    <span className="h-3 w-px bg-border" />
+                    <span className="text-[11px] font-mono text-muted-foreground">📅 Membre depuis {new Date(user.createdAt).toLocaleDateString("fr-DZ", { month: "long", year: "numeric" })}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skills */}
+              <div className="rounded-2xl border hairline bg-surface/60 p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-muted-foreground">Compétences</div>
+                  <span className="text-[11px] font-mono text-muted-foreground">{user.skills.length} compétence{user.skills.length !== 1 ? "s" : ""}</span>
+                </div>
+                {user.skills.length === 0 ? (
+                  <div className="text-[13px] text-muted-foreground italic">Aucune compétence renseignée.</div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {user.skills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="h-8 px-3 rounded-full text-[12px] border bg-leaf/10 border-leaf/30 text-leaf font-medium flex items-center"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Certifications */}
+              <div className="rounded-2xl border hairline bg-surface/60 p-6 mb-6">
+                <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-4">Certifications</div>
+                {certsLoading ? (
+                  <div className="text-[13px] text-muted-foreground animate-pulse">Chargement…</div>
+                ) : myCerts.length === 0 ? (
+                  <div className="text-[13px] text-muted-foreground italic">Aucune certification ajoutée.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {myCerts.map((cert) => (
+                      <div key={cert.id} className="flex items-start gap-4 rounded-xl border hairline bg-background/40 px-5 py-4">
+                        <span className="text-[24px] mt-0.5">🏅</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[14px] font-medium">{cert.name}</div>
+                          {cert.organization && (
+                            <div className="text-[12px] text-muted-foreground mt-0.5">{cert.organization}</div>
+                          )}
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {cert.code && (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded border hairline text-muted-foreground">
+                                # {cert.code}
+                              </span>
+                            )}
+                            {cert.issueDate && (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded border hairline text-muted-foreground">
+                                📅 {new Date(cert.issueDate).toLocaleDateString("fr-DZ", { day: "numeric", month: "short", year: "numeric" })}
+                              </span>
+                            )}
+                            {cert.fileUrl && (
+                              <a
+                                href={cert.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-mono px-2 py-0.5 rounded border border-leaf/30 text-leaf hover:bg-leaf/10 transition-colors"
+                              >
+                                📎 Voir le fichier →
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Gamification summary */}
+              <div className="rounded-2xl border hairline bg-surface/40 p-6">
+                <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-4">Résumé de progression</div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { icon: "⭐", label: "XP Total", val: `${profile.xp} XP` },
+                    { icon: "🔥", label: "Streak", val: `${profile.streak}j` },
+                    { icon: "🏅", label: "Badges", val: `${profile.earnedBadgeIds.length}` },
+                    { icon: "🎟️", label: "Inscrits", val: `${myRegs.length}` },
+                  ].map(({ icon, label, val }) => (
+                    <div key={label} className="text-center rounded-xl border hairline bg-background/40 p-4">
+                      <div className="text-[24px] mb-1">{icon}</div>
+                      <div className="text-[18px] font-medium">{val}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
         </main>
 
         {/* ── Right sidebar (desktop) ── */}
@@ -910,18 +1137,35 @@ function EmptyState({ message }: { message: string }) {
 function EventCard({
   ev,
   registered,
+  application,
   full,
   pct,
-  onRegister,
+  onApply,
+  onCancel,
 }: {
   ev: OdejEvent;
   registered: boolean;
+  application?: Application;
   full: boolean;
   pct: number;
-  onRegister: () => void;
+  onApply: () => void;
+  onCancel: () => void;
 }) {
   const accentColor = ev.accent === "leaf" ? "text-leaf" : "text-amber";
   const accentBg = ev.accent === "leaf" ? "bg-leaf/10 border-leaf/20" : "bg-amber/10 border-amber/20";
+
+  // Derive UI state from application status
+  const appStatus = application?.status;
+
+  const statusBadge = appStatus === "accepted"
+    ? <span className="shrink-0 text-[9px] font-mono uppercase tracking-wider px-2 py-1 rounded-full bg-leaf/15 border border-leaf/20 text-leaf">Accepté ✓</span>
+    : appStatus === "declined"
+    ? <span className="shrink-0 text-[9px] font-mono uppercase tracking-wider px-2 py-1 rounded-full bg-destructive/10 border border-destructive/20 text-destructive">Refusé</span>
+    : appStatus === "pending"
+    ? <span className="shrink-0 text-[9px] font-mono uppercase tracking-wider px-2 py-1 rounded-full bg-amber/15 border border-amber/20 text-amber">En attente</span>
+    : registered
+    ? <span className="shrink-0 text-[9px] font-mono uppercase tracking-wider px-2 py-1 rounded-full bg-leaf/15 border border-leaf/20 text-leaf">Inscrit ✓</span>
+    : null;
 
   return (
     <div className="rounded-2xl border hairline bg-surface/60 p-5 flex flex-col gap-3 hover:bg-surface transition-colors">
@@ -932,11 +1176,7 @@ function EventCard({
           </div>
           <div className="text-[15px] font-medium leading-snug">{ev.title}</div>
         </div>
-        {registered && (
-          <span className="shrink-0 text-[9px] font-mono uppercase tracking-wider px-2 py-1 rounded-full bg-leaf/15 border border-leaf/20 text-leaf">
-            Inscrit ✓
-          </span>
-        )}
+        {statusBadge}
       </div>
 
       <div className="text-[12px] text-muted-foreground leading-relaxed line-clamp-2">{ev.description}</div>
@@ -960,19 +1200,34 @@ function EventCard({
         </div>
       </div>
 
-      <button
-        onClick={onRegister}
-        disabled={full && !registered}
-        className={`mt-1 h-9 w-full rounded-full text-[12px] font-medium transition-all ${
-          registered
-            ? "border hairline text-muted-foreground hover:text-destructive hover:border-destructive/40"
-            : full
-            ? "border hairline text-muted-foreground opacity-50 cursor-not-allowed"
-            : `${accentBg} border ${accentColor} hover:opacity-80`
-        }`}
-      >
-        {registered ? "Annuler l'inscription" : full ? "Complet" : "S'inscrire"}
-      </button>
+      {/* CTA button */}
+      {appStatus === "accepted" || registered ? (
+        <button
+          onClick={onCancel}
+          className="mt-1 h-9 w-full rounded-full text-[12px] font-medium border hairline text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-all"
+        >
+          Annuler l'inscription
+        </button>
+      ) : appStatus === "pending" ? (
+        <div className="mt-1 h-9 w-full rounded-full text-[12px] font-medium border hairline text-amber/80 flex items-center justify-center gap-1.5">
+          <span className="animate-pulse">⏳</span> Candidature en cours d'examen
+        </div>
+      ) : appStatus === "declined" ? (
+        <div className="mt-1 h-9 w-full rounded-full text-[12px] font-medium border border-destructive/20 text-destructive/60 flex items-center justify-center">
+          Candidature refusée
+        </div>
+      ) : full ? (
+        <div className="mt-1 h-9 w-full rounded-full text-[12px] font-medium border hairline text-muted-foreground opacity-50 flex items-center justify-center">
+          Complet
+        </div>
+      ) : (
+        <button
+          onClick={onApply}
+          className={`mt-1 h-9 w-full rounded-full text-[12px] font-medium transition-all ${accentBg} border ${accentColor} hover:opacity-80`}
+        >
+          Postuler →
+        </button>
+      )}
     </div>
   );
 }

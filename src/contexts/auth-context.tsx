@@ -8,8 +8,9 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  signup: (data: { name: string; email: string; password: string; commune: string }) => Promise<{ ok: boolean; error?: string }>;
+  signup: (data: { name: string; email: string; password: string; commune: string }) => Promise<{ ok: boolean; error?: string; userId?: string }>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ async function fetchProfile(userId: string, tries = 5): Promise<User | null> {
   for (let i = 0; i < tries; i++) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, email, name, commune, role, created_at")
+      .select("id, email, name, commune, role, skills, created_at")
       .eq("id", userId)
       .single();
 
@@ -35,6 +36,7 @@ async function fetchProfile(userId: string, tries = 5): Promise<User | null> {
         name: data.name,
         commune: data.commune,
         role: data.role as UserRole,
+        skills: data.skills ?? [],
         createdAt: data.created_at,
       };
     }
@@ -93,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Signup ───────────────────────────────────────────────────────────────
 
   async function signup(data: { name: string; email: string; password: string; commune: string }) {
-    const { error } = await supabase.auth.signUp({
+    const { data: authData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
@@ -108,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           : error.message;
       return { ok: false, error: msg };
     }
-    return { ok: true };
+    return { ok: true, userId: authData.user?.id };
   }
 
   // ─── Logout ───────────────────────────────────────────────────────────────
@@ -118,8 +120,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  // ─── RefreshUser ──────────────────────────────────────────────────────────
+
+  async function refreshUser() {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser) {
+      const profile = await fetchProfile(authUser.id);
+      if (profile) setUser(profile);
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, signup, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

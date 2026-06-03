@@ -7,7 +7,12 @@ import {
   updateEvent,
   deleteEvent,
   getRegistrations,
+  getAllApplications,
+  reviewApplication,
+  getUserCertifications,
   type OdejEvent,
+  type Application,
+  type Certification,
   BEJAIA_COMMUNES,
 } from "@/lib/store";
 
@@ -44,7 +49,12 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const [events, setEvents] = useState<OdejEvent[]>([]);
   const [allRegs, setAllRegs] = useState<Awaited<ReturnType<typeof getRegistrations>>>([]);
-  const [view, setView] = useState<"events" | "registrations">("events");
+  const [allApps, setAllApps] = useState<Application[]>([]);
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [appCerts, setAppCerts] = useState<Certification[]>([]);
+  const [loadingCerts, setLoadingCerts] = useState(false);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [view, setView] = useState<"events" | "registrations" | "applications">("events");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<EventForm>(EMPTY_FORM);
@@ -61,9 +71,10 @@ function AdminDashboard() {
   // ── Load data ─────────────────────────────────────────────────────────────
 
   const refreshData = useCallback(async () => {
-    const [evs, regs] = await Promise.all([getEvents(), getRegistrations()]);
+    const [evs, regs, apps] = await Promise.all([getEvents(), getRegistrations(), getAllApplications()]);
     setEvents(evs);
     setAllRegs(regs);
+    setAllApps(apps);
   }, []);
 
   useEffect(() => {
@@ -114,6 +125,24 @@ function AdminDashboard() {
     setDeleteConfirm(null);
   }
 
+  async function openAppDetail(app: Application) {
+    setSelectedApp(app);
+    setAppCerts([]);
+    setLoadingCerts(true);
+    const certs = await getUserCertifications(app.userId);
+    setAppCerts(certs);
+    setLoadingCerts(false);
+  }
+
+  async function handleReview(appId: string, status: "accepted" | "declined") {
+    setReviewingId(appId);
+    await reviewApplication(appId, status);
+    await refreshData();
+    setReviewingId(null);
+    // Update selectedApp status if it's open
+    setSelectedApp((prev) => prev?.id === appId ? { ...prev, status, reviewedAt: new Date().toISOString() } : prev);
+  }
+
   if (isLoading || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -124,9 +153,136 @@ function AdminDashboard() {
 
   const totalSeats = events.reduce((s, e) => s + e.seatsTotal, 0);
   const takenSeats = events.reduce((s, e) => s + e.seatsTaken, 0);
+  const pendingApps = allApps.filter((a) => a.status === "pending").length;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+
+      {/* ── Application Detail Modal ── */}
+      {selectedApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <div className="w-full max-w-2xl rounded-2xl border hairline bg-surface shadow-soft p-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-leaf mb-1">Candidature</div>
+                <h2 className="text-[20px] font-medium">{selectedApp.eventTitle ?? "Événement"}</h2>
+              </div>
+              <button
+                onClick={() => setSelectedApp(null)}
+                className="h-8 w-8 shrink-0 rounded-full border hairline flex items-center justify-center text-[18px] text-muted-foreground hover:text-foreground"
+              >×</button>
+            </div>
+
+            {/* Profile */}
+            <div className="rounded-xl border hairline bg-background/40 p-5 mb-4">
+              <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-3">Profil du candidat</div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-12 w-12 rounded-full bg-leaf-gradient flex items-center justify-center text-background text-[18px] font-semibold shrink-0">
+                  {(selectedApp.userName ?? "?").charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-[15px] font-medium">{selectedApp.userName}</div>
+                  <div className="text-[12px] text-muted-foreground">{selectedApp.userEmail} · {selectedApp.userCommune}</div>
+                </div>
+              </div>
+
+              {/* Skills */}
+              {(selectedApp.userSkills ?? []).length > 0 && (
+                <div className="mt-3">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-muted-foreground mb-2">Compétences</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(selectedApp.userSkills ?? []).map((s) => (
+                      <span key={s} className="h-7 px-2.5 rounded-full text-[11px] border hairline bg-leaf/10 text-leaf border-leaf/30">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Certifications */}
+            <div className="rounded-xl border hairline bg-background/40 p-5 mb-4">
+              <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-3">Certifications</div>
+              {loadingCerts ? (
+                <div className="text-[13px] text-muted-foreground">Chargement…</div>
+              ) : appCerts.length === 0 ? (
+                <div className="text-[13px] text-muted-foreground">Aucune certification soumise.</div>
+              ) : (
+                <div className="space-y-3">
+                  {appCerts.map((cert) => (
+                    <div key={cert.id} className="rounded-xl border hairline bg-surface/60 px-4 py-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-[20px] mt-0.5">🏅</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] font-medium">{cert.name}</div>
+                          {cert.organization && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5">{cert.organization}</div>
+                          )}
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {cert.code && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border hairline text-muted-foreground">
+                                # {cert.code}
+                              </span>
+                            )}
+                            {cert.issueDate && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border hairline text-muted-foreground">
+                                📅 {new Date(cert.issueDate).toLocaleDateString("fr-DZ", { day: "numeric", month: "short", year: "numeric" })}
+                              </span>
+                            )}
+                            {cert.fileUrl && (
+                              <a
+                                href={cert.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-leaf/30 text-leaf hover:bg-leaf/10 transition-colors"
+                              >
+                                📎 Voir le fichier →
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Motivation letter */}
+            <div className="rounded-xl border hairline bg-background/40 p-5 mb-6">
+              <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-muted-foreground mb-3">Lettre de motivation</div>
+              <p className="text-[14px] leading-relaxed whitespace-pre-wrap">{selectedApp.motivation}</p>
+            </div>
+
+            {/* Actions */}
+            {selectedApp.status === "pending" ? (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleReview(selectedApp.id, "declined")}
+                  disabled={reviewingId === selectedApp.id}
+                  className="flex-1 h-11 rounded-full border border-destructive/30 text-[14px] text-destructive/80 hover:text-destructive hover:border-destructive transition-colors disabled:opacity-50"
+                >
+                  {reviewingId === selectedApp.id ? "…" : "✗ Refuser"}
+                </button>
+                <button
+                  onClick={() => handleReview(selectedApp.id, "accepted")}
+                  disabled={reviewingId === selectedApp.id}
+                  className="flex-1 h-11 rounded-full bg-leaf text-background text-[14px] font-medium hover:opacity-85 transition-opacity disabled:opacity-50"
+                >
+                  {reviewingId === selectedApp.id ? "…" : "✓ Accepter"}
+                </button>
+              </div>
+            ) : (
+              <div className={`h-11 w-full rounded-full flex items-center justify-center text-[14px] font-medium border ${
+                selectedApp.status === "accepted"
+                  ? "border-leaf/30 bg-leaf/10 text-leaf"
+                  : "border-destructive/30 bg-destructive/10 text-destructive"
+              }`}>
+                {selectedApp.status === "accepted" ? "✓ Candidature acceptée" : "✗ Candidature refusée"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {/* ── Top bar ── */}
       <header className="sticky top-0 z-40 border-b hairline bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-6">
@@ -157,12 +313,14 @@ function AdminDashboard() {
           {[
             { label: "Événements", value: events.length, icon: "📅" },
             { label: "Inscriptions", value: allRegs.length, icon: "🎟️" },
-            { label: "Places totales", value: totalSeats, icon: "🪑" },
-            { label: "Taux remplissage", value: totalSeats ? `${Math.round((takenSeats / totalSeats) * 100)}%` : "—", icon: "📊" },
-          ].map(({ label, value, icon }) => (
-            <div key={label} className="rounded-2xl border hairline bg-surface/60 p-5">
+            { label: "Candidatures", value: allApps.length, icon: "📋", highlight: pendingApps > 0 },
+            { label: "En attente", value: pendingApps, icon: "⏳", highlight: pendingApps > 0 },
+          ].map(({ label, value, icon, highlight }) => (
+            <div key={label} className={`rounded-2xl border p-5 ${
+                highlight ? "border-amber/30 bg-amber/5" : "hairline bg-surface/60"
+              }`}>
               <div className="text-[24px] mb-2">{icon}</div>
-              <div className="text-[26px] font-medium tracking-tight">{value}</div>
+              <div className={`text-[26px] font-medium tracking-tight ${highlight ? "text-amber" : ""}`}>{value}</div>
               <div className="text-[12px] text-muted-foreground">{label}</div>
             </div>
           ))}
@@ -171,7 +329,7 @@ function AdminDashboard() {
         {/* ── View toggle + CTA ── */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-1 rounded-full border hairline p-1 bg-surface/40">
-            {(["events", "registrations"] as const).map((v) => (
+            {(["events", "registrations", "applications"] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -179,7 +337,16 @@ function AdminDashboard() {
                   view === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {v === "events" ? "Événements" : "Inscriptions"}
+                {v === "events" ? "Événements" : v === "registrations" ? "Inscriptions" : (
+                  <span className="flex items-center gap-1.5">
+                    Candidatures
+                    {pendingApps > 0 && (
+                      <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber text-background text-[9px] font-mono px-1">
+                        {pendingApps}
+                      </span>
+                    )}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -309,6 +476,98 @@ function AdminDashboard() {
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Applications table ── */}
+        {view === "applications" && (
+          <div className="rounded-2xl border hairline bg-surface/40 overflow-hidden">
+            {allApps.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="text-[40px] mb-4">📭</div>
+                <div className="text-[14px] text-muted-foreground">Aucune candidature pour l'instant.</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b hairline text-left text-muted-foreground">
+                      <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider">Candidat</th>
+                      <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider hidden md:table-cell">Événement</th>
+                      <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider hidden sm:table-cell">Compétences</th>
+                      <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider">Statut</th>
+                      <th className="px-5 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y hairline">
+                    {allApps.map((app) => (
+                      <tr key={app.id} className="hover:bg-surface/60 transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="font-medium">{app.userName}</div>
+                          <div className="text-[11px] text-muted-foreground">{app.userEmail}</div>
+                          <div className="text-[11px] text-muted-foreground">{app.userCommune}</div>
+                        </td>
+                        <td className="px-5 py-4 hidden md:table-cell">
+                          <div>{app.eventTitle ?? "—"}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {new Date(app.createdAt).toLocaleDateString("fr-DZ", { day: "numeric", month: "short" })}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 hidden sm:table-cell">
+                          <div className="flex flex-wrap gap-1">
+                            {(app.userSkills ?? []).slice(0, 3).map((s) => (
+                              <span key={s} className="text-[9px] px-1.5 py-0.5 rounded-full bg-leaf/10 text-leaf border border-leaf/20 font-mono">{s}</span>
+                            ))}
+                            {(app.userSkills ?? []).length > 3 && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full border hairline text-muted-foreground font-mono">+{(app.userSkills ?? []).length - 3}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-full border ${
+                            app.status === "pending"
+                              ? "bg-amber/10 border-amber/30 text-amber"
+                              : app.status === "accepted"
+                              ? "bg-leaf/10 border-leaf/30 text-leaf"
+                              : "bg-destructive/10 border-destructive/30 text-destructive"
+                          }`}>
+                            {app.status === "pending" ? "En attente" : app.status === "accepted" ? "Accepté" : "Refusé"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2 justify-end">
+                            <button
+                              onClick={() => openAppDetail(app)}
+                              className="h-7 px-3 rounded-full border hairline text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              Voir
+                            </button>
+                            {app.status === "pending" && (
+                              <>
+                                <button
+                                  onClick={() => handleReview(app.id, "declined")}
+                                  disabled={reviewingId === app.id}
+                                  className="h-7 px-3 rounded-full border border-destructive/30 text-[11px] text-destructive/70 hover:text-destructive hover:border-destructive transition-colors disabled:opacity-50"
+                                >
+                                  Refuser
+                                </button>
+                                <button
+                                  onClick={() => handleReview(app.id, "accepted")}
+                                  disabled={reviewingId === app.id}
+                                  className="h-7 px-3 rounded-full bg-leaf text-background text-[11px] hover:opacity-85 transition-opacity disabled:opacity-50"
+                                >
+                                  Accepter
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
