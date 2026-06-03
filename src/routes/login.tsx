@@ -3,6 +3,9 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: (search.redirect as string) || "/app",
+  }),
   head: () => ({
     meta: [
       { title: "Connexion — YouthLink Béjaïa" },
@@ -15,6 +18,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { login, user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,9 +26,9 @@ function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      navigate({ to: user.role === "admin" ? "/admin" : "/app" });
+      navigate({ to: user.role === "admin" ? "/admin" : (redirect as any) || "/app" });
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, navigate, redirect]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +39,7 @@ function LoginPage() {
     if (!result.ok) {
       setError(result.error ?? "Erreur de connexion.");
     }
+    // navigation is handled by the useEffect watching `user`
   }
 
   return (
@@ -116,7 +121,7 @@ function LoginPage() {
 
           <div className="mt-6 text-center text-[13px] text-muted-foreground">
             Pas encore de compte?{" "}
-            <Link to="/signup" className="text-leaf hover:underline font-medium">
+            <Link to="/signup" search={{ redirect }} className="text-leaf hover:underline font-medium">
               S'inscrire
             </Link>
           </div>

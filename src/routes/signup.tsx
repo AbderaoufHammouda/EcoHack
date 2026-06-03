@@ -4,6 +4,9 @@ import { useAuth } from "@/contexts/auth-context";
 import { BEJAIA_COMMUNES } from "@/lib/store";
 
 export const Route = createFileRoute("/signup")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: (search.redirect as string) || "/app",
+  }),
   head: () => ({
     meta: [
       { title: "Inscription — YouthLink Béjaïa" },
@@ -16,6 +19,7 @@ export const Route = createFileRoute("/signup")({
 function SignupPage() {
   const { signup, user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,9 +29,9 @@ function SignupPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      navigate({ to: user.role === "admin" ? "/admin" : "/app" });
+      navigate({ to: user.role === "admin" ? "/admin" : (redirect as any) || "/app" });
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, navigate, redirect]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -155,7 +159,7 @@ function SignupPage() {
 
           <div className="mt-6 text-center text-[13px] text-muted-foreground">
             Déjà un compte ?{" "}
-            <Link to="/login" className="text-leaf hover:underline font-medium">
+            <Link to="/login" search={{ redirect }} className="text-leaf hover:underline font-medium">
               Se connecter
             </Link>
           </div>

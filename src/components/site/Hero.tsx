@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/contexts/auth-context";
 import heroImg from "@/assets/hero.jpg";
 
 function greeting(): { fr: string; ar: string; ber: string; period: string } {
@@ -11,6 +12,16 @@ function greeting(): { fr: string; ar: string; ber: string; period: string } {
 
 export function Hero() {
   const g = greeting();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  function handleEventClick() {
+    if (user) {
+      navigate({ to: "/app" });
+    } else {
+      navigate({ to: "/login", search: { redirect: "/app" } });
+    }
+  }
   return (
     <section className="relative isolate overflow-hidden pt-32 pb-24 md:pt-40 md:pb-32">
       <div className="absolute inset-0 bg-hero-gradient pointer-events-none" />
@@ -62,15 +73,16 @@ export function Hero() {
               transition={{ duration: 0.7, delay: 0.28 }}
               className="mt-8 flex flex-wrap items-center gap-3"
             >
-              <Link
-                to="/signup"
+              <button
+                onClick={handleEventClick}
                 className="group inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-5 text-[14px] font-medium text-background transition-all hover:gap-3"
               >
                 Explorer les opportunités
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-              </Link>
+              </button>
               <Link
                 to="/login"
+                search={{ redirect: "/app" }}
                 className="inline-flex h-11 items-center rounded-full border hairline bg-surface/40 px-5 text-[14px] text-foreground/90 backdrop-blur transition-colors hover:bg-surface"
               >
                 Se connecter
@@ -122,7 +134,10 @@ export function Hero() {
                     <div className="text-[15px] tracking-tight">Atelier · Design d'impact</div>
                     <div className="text-[12px] text-muted-foreground">Maison de Jeunes Béjaïa · Sam 18:00</div>
                   </div>
-                  <button className="shrink-0 h-8 rounded-full bg-leaf-gradient px-3 text-[11px] font-medium text-background">
+                  <button
+                    onClick={handleEventClick}
+                    className="shrink-0 h-8 rounded-full bg-leaf-gradient px-3 text-[11px] font-medium text-background hover:opacity-90 transition-opacity"
+                  >
                     Rejoindre
                   </button>
                 </div>

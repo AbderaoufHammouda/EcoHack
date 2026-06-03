@@ -1,4 +1,6 @@
 import { motion } from "motion/react";
+import { useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/contexts/auth-context";
 import workshopImg from "@/assets/workshop.jpg";
 import communityImg from "@/assets/community.jpg";
 
@@ -55,6 +57,17 @@ const items = [
 ];
 
 export function Discover() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  function handleEventClick() {
+    if (user) {
+      navigate({ to: "/app" });
+    } else {
+      navigate({ to: "/login", search: { redirect: "/app" } });
+    }
+  }
+
   return (
     <section id="discover" className="relative py-28 md:py-36">
       <div className="mx-auto max-w-[1240px] px-6">
@@ -77,13 +90,13 @@ export function Discover() {
         </div>
 
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <FeaturedCard image={workshopImg} />
+          <FeaturedCard image={workshopImg} onClick={handleEventClick} />
           {items.slice(0, 3).map((it, i) => (
-            <Card key={i} {...it} delay={i * 0.05} />
+            <Card key={i} {...it} delay={i * 0.05} onClick={handleEventClick} />
           ))}
-          <SpotlightCard image={communityImg} />
+          <SpotlightCard image={communityImg} onClick={handleEventClick} />
           {items.slice(3).map((it, i) => (
-            <Card key={i + 10} {...it} delay={i * 0.05} />
+            <Card key={i + 10} {...it} delay={i * 0.05} onClick={handleEventClick} />
           ))}
         </div>
 
@@ -116,15 +129,16 @@ export function Discover() {
 }
 
 function Card({
-  tag, title, place, when, seats, accent, delay = 0,
-}: typeof items[number] & { delay?: number }) {
+  tag, title, place, when, seats, accent, delay = 0, onClick,
+}: typeof items[number] & { delay?: number; onClick?: () => void }) {
   return (
     <motion.article
       initial={{ opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.5, delay }}
-      className="group relative flex flex-col justify-between rounded-2xl border hairline bg-surface/50 p-6 transition-all hover:bg-surface hover:-translate-y-0.5"
+      onClick={onClick}
+      className="group relative flex flex-col justify-between rounded-2xl border hairline bg-surface/50 p-6 transition-all hover:bg-surface hover:-translate-y-0.5 cursor-pointer"
     >
       <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.16em]">
         <span className={accent === "leaf" ? "text-leaf" : "text-amber"}>
@@ -148,16 +162,17 @@ function Card({
   );
 }
 
-function FeaturedCard({ image }: { image: string }) {
+function FeaturedCard({ image, onClick }: { image: string; onClick?: () => void }) {
   return (
     <motion.article
       initial={{ opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6 }}
-      className="relative row-span-1 overflow-hidden rounded-2xl border hairline lg:row-span-1 min-h-[300px]"
+      onClick={onClick}
+      className="relative row-span-1 overflow-hidden rounded-2xl border hairline lg:row-span-1 min-h-[300px] cursor-pointer group"
     >
-      <img src={image} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+      <img src={image} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/0" />
       <div className="relative flex h-full flex-col justify-end p-6">
         <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-amber">
@@ -167,21 +182,25 @@ function FeaturedCard({ image }: { image: string }) {
           Studio ouvert — créez quelque chose pour votre commune
         </h3>
         <div className="mt-3 text-[12px] text-muted-foreground">5 communes · 80 participants</div>
+        <div className="mt-4 inline-flex items-center gap-2 text-[12px] font-mono text-amber opacity-0 group-hover:opacity-100 transition-opacity">
+          Participer → 
+        </div>
       </div>
     </motion.article>
   );
 }
 
-function SpotlightCard({ image }: { image: string }) {
+function SpotlightCard({ image, onClick }: { image: string; onClick?: () => void }) {
   return (
     <motion.article
       initial={{ opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6 }}
-      className="relative overflow-hidden rounded-2xl border hairline min-h-[300px]"
+      onClick={onClick}
+      className="relative overflow-hidden rounded-2xl border hairline min-h-[300px] cursor-pointer group"
     >
-      <img src={image} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+      <img src={image} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
       <div className="relative flex h-full flex-col justify-end p-6">
         <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-leaf">
@@ -191,6 +210,9 @@ function SpotlightCard({ image }: { image: string }) {
           « On a planté 1 400 arbres avec des gens qu'on ne connaissait pas. »
         </h3>
         <div className="mt-3 text-[12px] text-muted-foreground">Yasmine · Béjaïa</div>
+        <div className="mt-4 inline-flex items-center gap-2 text-[12px] font-mono text-leaf opacity-0 group-hover:opacity-100 transition-opacity">
+          Rejoindre → 
+        </div>
       </div>
     </motion.article>
   );
